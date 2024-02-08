@@ -1,0 +1,666 @@
+---
+title: "Drivers of rents"
+author: "Nam Ngo - HUD"
+header-includes:
+  - \usepackage[default]{sourcesanspro}
+mainfont: SourceSansPro
+date: "`r format(Sys.time(), '%B %Y')`"
+spacing: double
+output:
+  html_document:
+    number_sections: yes
+  pdf_document:
+    toc: false
+    number_sections: true
+---
+
+Some preliminary results for the drivers of rent projects
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+library(dplyr)
+library(DBI)
+library(tidyverse)
+library(lubridate)
+library(devtools)
+library(readxl)
+library(zoo)
+library(psych) # for geometric.mean function
+library(stats)
+library(dbplyr)
+library(questionr)
+library(ggpubr)
+library(lmtest)
+library(cowplot)
+library(ggrepel)
+library(openxlsx)
+library(sjPlot)
+library(sjmisc)
+library(sjlabelled)
+library(seasonal)
+library(forecast)
+library(corrplot)
+library(margins)
+
+col <- c("#003E52", "#FFC04A",  "#62B6F3", "#A4343E", "#00826E","#DEDEDE")
+
+source("utility_functions.R")
+
+# options(digits = 6)
+options(scipen=999)
+
+theme1 = function(base_size=12) {
+  theme_minimal() +
+    theme(text = element_text(size = base_size, color="grey30"),
+          plot.title = element_text(size=20),
+          plot.subtitle = element_text(size=10),
+          plot.caption = element_text(size=10),
+          legend.text = element_text(size=12),
+          axis.text.y = element_text(size=10),
+          axis.text.x = element_text(size=12),
+          axis.title = element_text(size=12),
+          strip.text = element_text (color="grey30", size=10, margin = margin(0,.5,0,.5, "cm")),
+          panel.spacing = unit(1, "lines"))
+}
+
+
+```
+
+```{r import-data, cache=TRUE}
+combined_nz <- readRDS("data/combined_nz.RDS") 
+
+
+# Add real rents measure
+combined_nz <- combined_nz %>%
+  arrange(desc(date)) %>%
+  fill(cpi) %>%
+  fill(cpi_exRent) %>%
+  arrange(date) %>%
+  mutate(rpi_real = rpi/cpi*1000,
+         earnings_real = earnings/cpi*1000)
+
+# Calculate changes (annual/quarterly)
+t = 12
+
+combined_nz <- combined_nz %>%
+  arrange(date) %>%
+  mutate(rpi.log = log(rpi)) %>%
+  mutate(rpi.change = (rpi/lag(rpi,t)-1)*100) %>%
+  mutate(rpi_real.change = (rpi_real/lag(rpi_real,t)-1)*100) %>%
+  mutate(income.change = (income/lag(income,t)-1)*100) %>%
+  mutate(earnings.change = (earnings/lag(earnings,t)-1)*100) %>%
+  mutate(earnings_real.change = (earnings_real/lag(earnings_real,t)-1)*100) %>%
+  mutate(earnings_sa.change = (earnings_sa/lag(earnings_sa,t)-1)*100) %>%
+  mutate(dwellings.change = (dwellings/lag(dwellings,t)-1)*100) %>%
+  mutate(pop.change = (pop/lag(pop,t)-1)*100) %>%
+  mutate(hpi.change = (hpi/lag(hpi,t)-1)*100) %>%
+  mutate(cpi.change = (cpi_exRent/lag(cpi_exRent,t)-1)*100) %>%
+  mutate(ppd.demeaned = ppd - mean(ppd,na.rm = T)) %>%
+  mutate(earnings.change.demeaned = earnings.change - mean(earnings.change,na.rm = T)) %>%
+  mutate(income.change.demeaned = income.change - mean(income.change,na.rm = T)) %>%
+  mutate(vacancy.demeaned = vacancy - mean(vacancy,na.rm = T)) %>%
+  mutate(vacant_time.demeaned = vacant_time - mean(vacant_time,na.rm = T)) %>%
+  mutate(mrate_lagged = mrate + lag(mrate,1) + lag(mrate,2) + lag(mrate,3)) 
+
+
+combined_nz_quarterly <- combined_nz %>%
+  filter(month(date) %in% c(3,6,9,12)) %>%
+  #filter(year(date)>=2007) %>%
+  mutate(quarter = quarter(date)) 
+
+```
+
+# Preliminary analysis
+
+## Time series 
+
+```{r ,fig.height=7, fig.width=12, warning = FALSE, message = FALSE, echo = FALSE}
+# Seasonality adjustment - ARIMA-X11  
+# Convert to ts object
+rpi_ts <- ts(combined_nz_quarterly$rpi,freq = 4 , as.yearqtr(combined_nz_quarterly$date[1]))
+
+# rpi_ts_sa <- seas(rpi_ts, x11 ="")
+
+# autoplot(rpi_ts_sa)
+
+# Decompose into trend + seasonal + residuals
+autoplot(rpi_ts, main = "Rental Price Index") +
+  theme1() +
+  labs(y = "",
+       x = "")
+
+autoplot(diff(log(rpi_ts)), main = "Rental Price Index - quarterly change") +
+  theme1() +
+  labs(y = "",
+       x = "")
+
+```
+
+## Seasonality 
+
+There's some seasonal pattern in the Rental Price Index series, i.e high in Q1 and low in Q3, however the magnitude is not significant. A lot of the underlying seasonality has already been taken out by the fixed effects method. 
+
+Note: 
+
+* If quarterly inflation is used as the explanatory variable, then include quarter dummies to control for the residual seasonality pattern 
+* If annual inflation is used then quarterly dummies are optional
+
+```{r ,fig.height=7, fig.width=12, warning = FALSE, message = FALSE, echo = FALSE}
+
+# Seasonally adjustment - X11 ARIMA
+rpi_ts_sa <- seas(rpi_ts, x11 ="")
+
+# Convert back to dataframe and bind back the raw number
+rpi_sa_df <- data.frame(rpi_ts_sa$data,  date = date_to_quarter(as.Date(time(trend(rpi_ts_sa))))) %>%
+  left_join(combined_nz_quarterly %>%
+              select(rpi, date)) %>%
+  mutate(label = month.abb[month(date)]) %>%
+  mutate(label = ifelse(label %in% c("Sep","Mar"), label, NA)) %>%
+  mutate(label_shocks = ifelse(date == "2020-03-31" | date == "2021-06-30", "Nationwide lockdown",
+                               ifelse(date == "2007-06-30", "GFC", NA)))
+
+
+# Plot seasonal pattern - to decide if seasonality adjustment is needed
+ggplot(data=rpi_sa_df) +
+  geom_line(aes(x = date, y = seasonal , group = 1, col = "Seasonal pattern - RPI"), size = 1) +
+  labs(title = "", x="", y="", col = "") +
+  theme_minimal(base_size = 18) +
+  theme(panel.grid.major.x = element_blank(), panel.grid.major.y = element_line(size=0.1, color="gray92")) +
+  theme(panel.grid.minor = element_blank()) +
+  theme(axis.line.y = element_line(color="gray92", size = 1)) +
+  theme(legend.position = "top", legend.text = element_text(size = 12)) +
+  scale_x_date(date_break = "1 year", date_labels = "%y", expand = c(0, 0)) +
+  theme(axis.text.x = element_text(angle = 90, size = 10),
+        axis.title = element_text(size=18)) +
+  scale_colour_manual(values=c("#FFBE1C"), name="") +
+  geom_label_repel(aes(x = date, y = seasonal, label = label),
+                   nudge_x = 80,
+                   na.rm = TRUE) 
+
+p1 <- ggplot(data=rpi_sa_df) +
+  geom_line(aes(x = date, y = rpi, group = 1, alpha = "Actual"), col = col[1], size = 1) +
+  geom_line(aes(x = date, y = seasonaladj, group = 2, alpha = "Seasonally adjusted"), col = col[1], size = 1.5) +
+  labs(title = "Rental Price Index (seasonally adjusted)", x="", y="", col = "", fill = "") +
+  theme1() +
+  theme(panel.grid.major.x = element_blank(), panel.grid.major.y = element_blank()) +
+  theme(panel.grid.minor = element_blank()) +
+  theme(axis.line.y = element_line(color="grey92", size = 1)) +
+  # Key shocks
+  # Covid
+  geom_text_repel(aes(x = date, y = seasonaladj, label = label_shocks),
+                  nudge_x = 0.1,
+                  nudge_y = -0.1,
+                  na.rm = TRUE,
+                  size = 4,
+                  col = col[2],
+                  #arrow = arrow(length = unit(0.01, "npc")),
+                  box.padding = 5) +
+  theme(legend.position = c(0.2, 0.9), legend.text = element_text(size = 12), legend.key.width = unit(1, 'cm')) +
+  expand_limits(y=0) +
+  theme(axis.text.x = element_text(angle = 45, size = 12),
+        axis.title = element_text(size=18)) +
+  scale_alpha_manual(values = c(0.3, 1), name = "") +
+  scale_x_date(date_break = "2 year", date_labels = "%y") +
+  ylim(0.5,2)
+
+p1
+
+```
+
+## Lag selection - Rent growth
+
+The autocorrelation function and partial autocorrelation function suggest that lag rent growth of at least order 1 should be included as explanatory variables
+
+### Quarterly change
+
+```{r ,fig.height=7, fig.width=12, warning = FALSE, message = FALSE, echo = FALSE}
+
+t = 3
+
+combined_nz1 <- combined_nz %>%
+  arrange(date) %>%
+  mutate(rpi.change = (rpi/lag(rpi,t)-1)*100)
+
+rpi_ts <- ts(combined_nz1$rpi.change,freq = 4 , as.yearqtr(combined_nz1$date[1])) 
+
+Acf(rpi_ts, lag.max = 6)
+
+Pacf(rpi_ts, lag.max = 6, plot = TRUE, na.action = na.contiguous)
+
+
+```
+
+### Annual change
+
+```{r ,fig.height=7, fig.width=12, warning = FALSE, message = FALSE, echo = FALSE}
+
+t = 12
+
+combined_nz1 <- combined_nz %>%
+  arrange(date) %>%
+  mutate(rpi.change = (rpi/lag(rpi,t)-1))
+
+rpi_ts <- ts(combined_nz1$rpi.change,freq = 4 , as.yearqtr(combined_nz1$date[1])) 
+
+Acf(rpi_ts, lag.max = 6)
+
+Pacf(rpi_ts, lag.max = 6, plot = TRUE, na.action = na.contiguous)
+
+
+```
+
+### Correlation matrix
+
+
+```{r ,fig.height=7, fig.width=12, warning = FALSE, message = FALSE, echo = FALSE}
+
+combined_nz <- readRDS("data/combined_nz.RDS") 
+
+# Add real rents measure
+combined_nz <- combined_nz %>%
+  arrange(desc(date)) %>%
+  fill(cpi) %>%
+  fill(cpi_exRent) %>%
+  arrange(date) %>%
+  mutate(rpi_real = rpi/cpi*1000,
+         earnings_real = earnings/cpi*1000)
+
+# Calculate changes (annual/quarterly)
+t = 12
+
+combined_nz <- combined_nz %>%
+  arrange(date) %>%
+  mutate(rpi.log = log(rpi)) %>%
+  mutate(rpi.change = (rpi/lag(rpi,t)-1)*100) %>%
+  mutate(rpi_real.change = (rpi_real/lag(rpi_real,t)-1)*100) %>%
+  mutate(income.change = (income/lag(income,t)-1)*100) %>%
+  mutate(earnings.change = (earnings/lag(earnings,t)-1)*100) %>%
+  mutate(earnings_real.change = (earnings_real/lag(earnings_real,t)-1)*100) %>%
+  mutate(earnings_sa.change = (earnings_sa/lag(earnings_sa,t)-1)*100) %>%
+  mutate(dwellings.change = (dwellings/lag(dwellings,t)-1)*100) %>%
+  mutate(pop.change = (pop/lag(pop,t)-1)*100) %>%
+  mutate(hpi.change = (hpi/lag(hpi,t)-1)*100) %>%
+  mutate(cpi.change = (cpi_exRent/lag(cpi_exRent,t)-1)*100) %>%
+  mutate(ppd.demeaned = ppd - mean(ppd,na.rm = T)) %>%
+  mutate(earnings.change.demeaned = earnings.change - mean(earnings.change,na.rm = T)) %>%
+  mutate(income.change.demeaned = income.change - mean(income.change,na.rm = T)) %>%
+  mutate(vacancy.demeaned = vacancy - mean(vacancy,na.rm = T)) %>%
+  mutate(vacant_time.demeaned = vacant_time - mean(vacant_time,na.rm = T)) %>%
+  mutate(mrate_lagged = mrate + lag(mrate,1) + lag(mrate,2) + lag(mrate,3)) 
+
+combined_nz_quarterly <- combined_nz %>%
+  filter(month(date) %in% c(3,6,9,12)) %>%
+  #filter(year(date)>=2007) %>%
+  mutate(quarter = quarter(date)) 
+
+
+cor_matrix <- cor(combined_nz_quarterly %>%
+      filter(year(date)>=2007) %>%
+      dplyr::select(rpi.change,
+             income.change,
+             earnings.change,
+             ppd.demeaned,
+             unemp,
+             mrate))
+
+# round(cor_matrix, 2)
+
+corrplot(cor_matrix, method="number")
+
+
+
+```
+
+
+## Results
+
+### Annual rent inflation, quarterly frequency vs wage growth (average weekly earnings)
+
+```{r Prepare data}
+
+combined_nz <- readRDS("data/combined_nz.RDS") 
+
+# Add real rents measure
+combined_nz <- combined_nz %>%
+  arrange(desc(date)) %>%
+  fill(cpi) %>%
+  fill(cpi_exRent) %>%
+  arrange(date) %>%
+  mutate(rpi_real = rpi/cpi*1000,
+         earnings_real = earnings/cpi*1000)
+
+# Calculate changes (annual/quarterly)
+t = 12
+
+combined_nz <- combined_nz %>%
+  arrange(date) %>%
+  mutate(rpi.change = (rpi/lag(rpi,t)-1)*100) %>%
+  mutate(rpi_real.change = (rpi_real/lag(rpi_real,t)-1)*100) %>%
+  mutate(income.change = (income/lag(income,t)-1)*100) %>%
+  mutate(earnings.change = (earnings/lag(earnings,t)-1)*100) %>%
+  mutate(earnings_real.change = (earnings_real/lag(earnings_real,t)-1)*100) %>%
+  mutate(earnings_sa.change = (earnings_sa/lag(earnings_sa,t)-1)*100) %>%
+  mutate(dwellings.change = (dwellings/lag(dwellings,t)-1)*100) %>%
+  mutate(pop.change = (pop/lag(pop,t)-1)*100) %>%
+  mutate(hpi.change = (hpi/lag(hpi,t)-1)*100) %>%
+  mutate(cpi.change = (cpi_exRent/lag(cpi_exRent,t)-1)*100) %>%
+  mutate(ppd.demeaned = ppd - mean(ppd,na.rm = T)) %>%
+  mutate(earnings.change.demeaned = earnings.change - mean(earnings.change,na.rm = T)) %>%
+  mutate(income.change.demeaned = income.change - mean(income.change,na.rm = T)) %>%
+  mutate(vacancy.change = (vacancy/lag(vacancy,t)-1)*100) %>%
+
+  mutate(vacancy.demeaned = vacancy - mean(vacancy,na.rm = T)) %>%
+  mutate(vacant_time.demeaned = vacant_time - mean(vacant_time,na.rm = T)) %>%
+  mutate(vacant_time.change = vacant_time - lag(vacant_time,t)) %>%
+
+  mutate(mrate_ave = (lag(mrate,0) + lag(mrate,1) + lag(mrate,2))/3) %>%
+  #mutate(mrate.change = (mrate/lag(mrate,t)-1)*100) %>%
+  mutate(mrate.change = mrate - lag(mrate,t)) %>%
+
+  mutate(covid_dummy = ifelse(year(date) %in% c(2020,2021), 1, 0),
+         gfc_dummy = ifelse(year(date) %in% c(2007,2008),1,0)) 
+
+combined_nz_quarterly <- combined_nz %>%
+  filter(month(date) %in% c(3,6,9,12)) %>%
+  #filter(year(date)>=2007) %>%
+  mutate(quarter = quarter(date)) 
+
+
+# combined_nz_quarterly <- combined_nz %>%
+#   filter(month(date) %in% c(3,6,9,12)) %>%
+#   #filter(year(date)>=2007) %>%
+#   mutate(quarter = quarter(date)) %>%
+#   mutate(lag.rpi = lag(rpi.change,1),
+#          lag.earnings = lag(earnings.change,1),
+#          lag.ppd = lag(ppd.demeaned,1),
+#          lag.mrate = lag(mrate.change,1),
+#          lag.unemp = lag(unemp,1))
+
+```
+
+
+* Measure of relative supply and demand: People per dwelling (demeanded) 
+* Q1-2006 to Q4-2021
+
+
+```{r Baseline model 1}}
+
+
+model <- lm(rpi.change ~ 
+              lag(rpi.change,1) +
+              lag(earnings.change,1) + 
+              lag(ppd.demeaned,1) +
+              lag(ppd.demeaned,1)*lag(earnings.change,1) +
+
+              lag(mrate,1) + 
+
+
+              
+              #lag(pop.change,1) + 
+              #lag(dwellings.change,1) + 
+              
+              #lag(cpi.change,1) +
+              lag(unemp,1) +
+              factor(quarter) 
+
+              #factor(year(date))
+            ,
+            data = combined_nz_quarterly) 
+
+
+# model <- lm(rpi.change ~ 
+#               lag.rpi +
+#              lag.earnings + 
+#               lag.ppd +
+#               lag.ppd*lag.earnings +
+# 
+#               lag.mrate +
+#               
+#               #lag(pop.change,1) + 
+#               #lag(dwellings.change,1) + 
+#               
+#               #cpi.change +
+#               lag.unemp +
+#               factor(quarter)
+#               #factor(year(date))
+#             ,
+#             data = combined_nz_quarterly) 
+
+
+labels <- c("Rent inflation (lagged)",
+           "Wage growth (lagged)",
+           "People per dwelling (demeaned, lagged)",
+           "Floating mortgage rate (lagged)",
+           "Unemployment rate (lagged)",
+           "Wage growth x People per dwelling")
+
+tab_model(summary(model),   
+          show.intercept = F,
+          digits = 3,
+          dv.labels = "Rent inflation (annual)",
+          pred.labels = labels,
+          drop = "quarter",
+          p.style = "numeric_stars",
+          p.threshold = c(0.1, 0.05, 0.01))  
+
+
+```
+
+Replacing mortgage rate with change in mortgage rate suggests that the speed of rising/decreasing mortgage rate is more important for explaining rent inflation (through declining/rising homeownership rate channel)
+
+```{r Baseline model 1b}}
+
+
+model <- lm(rpi.change ~ 
+              lag(rpi.change,1) +
+              lag(earnings.change,1) + 
+              lag(ppd.demeaned,1) +
+              lag(ppd.demeaned,1)*lag(earnings.change,1) +
+
+              lag(mrate.change,1) + 
+
+
+              
+              #lag(pop.change,1) + 
+              #lag(dwellings.change,1) + 
+              
+              #lag(cpi.change,1) +
+              lag(unemp,1) +
+              factor(quarter) 
+
+              #factor(year(date))
+            ,
+            data = combined_nz_quarterly) 
+
+
+# model <- lm(rpi.change ~ 
+#               lag.rpi +
+#              lag.earnings + 
+#               lag.ppd +
+#               lag.ppd*lag.earnings +
+# 
+#               lag.mrate +
+#               
+#               #lag(pop.change,1) + 
+#               #lag(dwellings.change,1) + 
+#               
+#               #cpi.change +
+#               lag.unemp +
+#               factor(quarter)
+#               #factor(year(date))
+#             ,
+#             data = combined_nz_quarterly) 
+
+
+labels <- c("Rent inflation (lagged)",
+           "Wage growth (lagged)",
+           "People per dwelling (demeaned, lagged)",
+           "Change in floating mortgage rate (lagged)",
+           "Unemployment rate (lagged)",
+           "Wage growth x People per dwelling")
+
+tab_model(summary(model),   
+          show.intercept = F,
+          digits = 3,
+          dv.labels = "Rent inflation (annual)",
+          pred.labels = labels,
+          drop = "quarter",
+          p.style = "numeric_stars",
+          p.threshold = c(0.1, 0.05, 0.01))  
+
+
+```
+
+### Alternative measure of relative supply and demand
+
+* Measure of relative supply and demand: Vacancy rate (New bonds/Active bonds) 
+* Q1-2000 to Q4-2021
+
+
+```{r Baseline model 2}}
+
+
+model <- lm(rpi.change ~ 
+              lag(rpi.change,1) +
+              lag(earnings.change,1) + 
+              lag(vacancy,1) +
+              lag(vacancy,1)*lag(earnings.change,1) +
+
+              lag(mrate,1) +
+              
+              #lag(pop.change,1) + 
+              #lag(dwellings.change,1) + 
+              
+              #cpi.change +
+              lag(unemp,1) +
+              factor(quarter) 
+              #factor(year(date))
+            ,
+            data = combined_nz_quarterly) 
+
+
+
+labels <- c("Rent inflation (lagged)",
+           "Wage growth (lagged)",
+           "Vacancy rate (lagged)",
+           "Change in floating mortgage rate (lagged)",
+           "Unemployment rate (lagged)",
+           "Wage growth x Vacancy rate")
+
+tab_model(summary(model),   
+          show.intercept = F,
+          digits = 3,
+          dv.labels = "Rent inflation (annual)",
+          pred.labels = labels,
+          drop = "quarter",
+          p.style = "numeric_stars",
+          p.threshold = c(0.1, 0.05, 0.01)) 
+
+```
+
+
+* Measure of relative supply and demand: Change in median vacant time (Time between tenancies) 
+* Q1-2000 to Q4-2021
+
+
+```{r Baseline model 3}}
+
+
+model <- lm(rpi.change ~ 
+              lag(rpi.change,1) +
+              lag(earnings.change,1) + 
+              lag(vacant_time.change,1) +
+              lag(vacant_time.change,1)*lag(earnings.change,1) +
+
+              lag(mrate,1) +
+              
+              #lag(pop.change,1) + 
+              #lag(dwellings.change,1) + 
+              
+              #cpi.change +
+              lag(unemp,1) +
+              factor(quarter) 
+              #factor(year(date))
+            ,
+            data = combined_nz_quarterly) 
+
+
+# model <- lm(rpi.change ~ 
+#               lag.rpi +
+#              lag.earnings + 
+#               lag.ppd +
+#               lag.ppd*lag.earnings +
+# 
+#               lag.mrate +
+#               
+#               #lag(pop.change,1) + 
+#               #lag(dwellings.change,1) + 
+#               
+#               #cpi.change +
+#               lag.unemp +
+#               factor(quarter)
+#               #factor(year(date))
+#             ,
+#             data = combined_nz_quarterly) 
+
+
+labels <- c("Rent inflation (lagged)",
+           "Wage growth (lagged)",
+           "Change in median vacant time (lagged)",
+           "Change in floating mortgage rate (lagged)",
+           "Unemployment rate (lagged)",
+           "Wage growth x Change in median vacant time")
+
+tab_model(summary(model),   
+          show.intercept = F,
+          digits = 3,
+          dv.labels = "Rent inflation (annual)",
+          pred.labels = labels,
+          drop = "quarter",
+          p.style = "numeric_stars",
+          p.threshold = c(0.1, 0.05, 0.01)) 
+
+```
+
+
+Household income growth (to be added)
+
+```{r Model 2}
+
+# model <- lm(rpi.change ~ 
+#               lag(income.change,1) +
+#               lag(earnings.change,1) + 
+#               ppd.demeaned +
+#               ppd.demeaned*lag(income.change,1) +
+# 
+#               mrate +
+#               
+#               #lag(pop.change,1) + 
+#               #lag(dwellings.change,1) + 
+#               
+#               #cpi.change +
+#               lag(unemp,1) +
+#               factor(quarter) 
+#               #factor(year(date))
+#             ,
+#             data = combined_nz_quarterly) 
+# 
+# 
+# labels <- c("Rent inflation (lagged)",
+#            "Income growth (lagged)",
+#            "People per dwelling (demeaned)",
+#            "Mortgage rate (floating)",
+#            "Unemployment rate (lagged)",
+#            "Wage growth x People per dwelling")
+# 
+# tab_model(summary(model),   
+#           show.intercept = F,
+#           digits = 3,
+#           dv.labels = "Rent inflation (annual)",
+#           pred.labels = labels,
+#           drop = "quarter",
+#           p.style = "numeric_stars",
+#           p.threshold = c(0.05, 0.01, 0.001))  
+
+```
