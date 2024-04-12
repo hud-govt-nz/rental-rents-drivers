@@ -105,7 +105,14 @@ combined_nz <- combined_nz %>%
 
 
 # Calculate changes (annual - 12 or quarterly - 3)
+# Quarterly:
+t = 3
+i = 1
+
+# Annual
 t = 12
+i = 4
+
 
 combined_nz <- combined_nz %>%
   arrange(date) %>%
@@ -197,8 +204,9 @@ test <- combined_nz_quarterly %>%
 
 #### 2.1 Baseline ----
 
-# Pick lag order to alternate between quarterly and annually change
-i = 4
+# # Pick lag order to alternate between quarterly and annually change
+# i = 1 # for annual 
+# i = 4 # for quarterly
 
 # Stationary test
 rpi_ts <- ts(combined_nz_quarterly$earnings.change, freq = 4 , as.yearqtr(combined_nz_quarterly$date[1])) 
@@ -604,11 +612,6 @@ tab_model(model2a,
           p.threshold = c(0.1, 0.05, 0.01),
           drop = "quarter|rpi|mrate|cpi|unemp",
           file = "results_updated/baseline_interaction.doc")
-
-
-
-
-
 
 
 model2b <- lm(rpi.change ~ 

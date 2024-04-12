@@ -26,7 +26,7 @@
 <tr>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">Rent inflation (2nd lag)</td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">&#45;0.24 <sup>*</sup><br>(0.13)</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">&#45;0.32 <sup>**</sup><br>(0.12)</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">&#45;0.31 <sup>**</sup><br>(0.12)</td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">&#45;0.45 <sup>***</sup><br>(0.13)</td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">&#45;0.46 <sup>***</sup><br>(0.13)</td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">&#45;0.43 <sup>***</sup><br>(0.14)</td>
@@ -43,17 +43,17 @@
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">Wage growth (deviation from sample mean 0.93, lagged)</td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">0.41 <sup>***</sup><br>(0.14)</td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">0.40 <sup>***</sup><br>(0.13)</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">0.46 <sup>***</sup><br>(0.13)</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">0.45 <sup>***</sup><br>(0.13)</td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">0.44 <sup>***</sup><br>(0.13)</td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">0.45 <sup>***</sup><br>(0.13)</td>
 </tr>
 <tr>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">People per dwelling (deviation from sample mean 2.57, lagged)</td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  "></td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">6.43 <sup>**</sup><br>(2.41)</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">6.36 <sup>***</sup><br>(2.28)</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">6.67 <sup>***</sup><br>(2.33)</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">7.58 <sup>***</sup><br>(2.70)</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">6.64 <sup>**</sup><br>(2.52)</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">6.66 <sup>***</sup><br>(2.38)</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">6.89 <sup>***</sup><br>(2.42)</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">7.78 <sup>***</sup><br>(2.80)</td>
 </tr>
 <tr>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">Change in floating mortgage rate (lagged)</td>
@@ -61,15 +61,15 @@
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  "></td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">0.05 <sup>**</sup><br>(0.02)</td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">0.05 <sup>**</sup><br>(0.02)</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">0.04 <sup>*</sup><br>(0.02)</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">0.04 <sup>**</sup><br>(0.02)</td>
 </tr>
 <tr>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">General inflation</td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  "></td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  "></td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  "></td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">0.12 <sup></sup><br>(0.16)</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">0.16 <sup></sup><br>(0.18)</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">0.10 <sup></sup><br>(0.16)</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">0.14 <sup></sup><br>(0.17)</td>
 </tr>
 <tr>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">Unemployment rate (lagged)</td>
@@ -90,10 +90,10 @@
 <tr>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">R<sup>2</sup> / R<sup>2</sup> adjusted</td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="1">0.470 / 0.393</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="1">0.539 / 0.461</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="1">0.597 / 0.518</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="1">0.602 / 0.513</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="1">0.606 / 0.508</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="1">0.538 / 0.459</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="1">0.598 / 0.519</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="1">0.601 / 0.513</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="1">0.605 / 0.506</td>
 </tr>
 <tr>
 <td colspan="6" style="font-style:italic; border-top:double black; text-align:right;">* p&lt;0.1&nbsp;&nbsp;&nbsp;** p&lt;0.05&nbsp;&nbsp;&nbsp;*** p&lt;0.01</td>
