@@ -27,12 +27,12 @@ ui <- fluidPage(
       sliderInput("cpi_exRent_growth_rate", "CPI Excluding Rents Growth Rate:",
                   min = -0.1, max = 0.1, value = 0.01, step = 0.01),
       sliderInput("unemp_growth_rate", "Unemployment Growth Rate:",
-                  min = -0.1, max = 0.1, value = -0.01, step = 0.01),
-      actionButton("update", "Update Scenario")
+                  min = -0.1, max = 0.1, value = -0.01, step = 0.01)
     ),
 
     mainPanel(
-      plotOutput("rpi_change_plot")
+      plotOutput("rpi_change_plot"),
+      plotOutput("predictor_variables_plot")
     )
   )
 )
@@ -44,15 +44,17 @@ server <- function(input, output) {
   rpi_change_plot <- reactive({  
     input$update  
     
-    scenario_growth_rates <- c(input$earnings_growth_rate, input$pop_growth_rate, input$dwells_growth_rate,  
-                               input$mrate_growth_rate, input$cpi_exRent_growth_rate, input$unemp_growth_rate)  
+    scenario_growth_rates <- c(input$earnings_growth_rate, input$pop_growth_rate, input$dwells_growth_rate,
+                               input$mrate_growth_rate, input$cpi_exRent_growth_rate, input$unemp_growth_rate)
+
+    #scenario_growth_rates <- c( 0.03, 0.02, 0.02, 0, 0.004, 0.03)
     
     # Get the last observed values of the predictor variables  
     last_values <- as.numeric(combined_nz_quarterly[nrow(combined_nz_quarterly), predictor_vars])  
     
     # Generate future predictor values for the scenario  
     scenario_data <- create_scenario_data(last_values, scenario_growth_rates)  
-    
+    colnames(scenario_data) <- predictor_vars
     # Forecast RPI change for the scenario  
     scenario_forecasts_df <- data.frame(scenario_data, date = forecast_dates)  
     colnames(scenario_forecasts_df) <- predictor_vars  
@@ -90,10 +92,47 @@ server <- function(input, output) {
       theme_minimal()  
   })  
   
+  predictor_variables_plot <- reactive({  
+    input$update  
+    
+    scenario_growth_rates <- c(input$earnings_growth_rate, input$pop_growth_rate, input$dwells_growth_rate,    
+                               input$mrate_growth_rate, input$cpi_exRent_growth_rate, input$unemp_growth_rate)    
+    
+    # Get the last observed absolute values of the predictor variables  
+    absolute_predictor_vars <- gsub(".change", "", predictor_vars)  
+    last_values <- as.numeric(combined_nz_quarterly[nrow(combined_nz_quarterly), absolute_predictor_vars])    
+    
+    # Generate future predictor values for the scenario    
+    scenario_data <- create_scenario_data(last_values, scenario_growth_rates)    
+    colnames(scenario_data) <- absolute_predictor_vars
+    
+    # Add a date column to the scenario data  
+    scenario_data_with_dates <- data.frame(scenario_data, date = forecast_dates)  
+    
+    # Reshape the data to a long format for the facet plot  
+    scenario_data_long <- scenario_data_with_dates %>%  
+      pivot_longer(cols = -date, names_to = "variable", values_to = "value")  
+    
+    # Create a facet plot for the predictor variables  
+    ggplot(scenario_data_long, aes(x = date, y = value)) +  
+      geom_line() +  
+      facet_wrap(~ variable, scales = "free_y") + 
+      labs(title = "Forecasted Values of Predictor Variables",
+           subtitle = "Quarterly values given chosen quarterly rate of change",
+           x = "Date",  
+           y = "Value") +  
+      theme_minimal()        
+  })  
+  
+  
   output$rpi_change_plot <- renderPlot({  
     rpi_change_plot()  
   })   
+  
+  output$predictor_variables_plot <- renderPlot({    
+    predictor_variables_plot()    
+  })  
 }  
 
 # Run the app  
-shinyApp(ui = ui, server = server)  
+shinyApp(ui = ui, server = server, options = list(height = 1080)) 
