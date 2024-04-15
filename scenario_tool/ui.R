@@ -16,18 +16,18 @@ ui <- fluidPage(
 
   sidebarLayout(
     sidebarPanel(
-      sliderInput("earnings_growth_rate", "Earnings Growth Rate:",
-                  min = -0.1, max = 0.1, value = 0.01, step = 0.01),
-      sliderInput("pop_growth_rate", "Population Growth Rate:",
-                  min = -0.1, max = 0.1, value = 0.02, step = 0.01),
-      sliderInput("dwells_growth_rate", "Dwellings Growth Rate:",
-                  min = -0.1, max = 0.1, value = 0.03, step = 0.01),
-      sliderInput("mrate_growth_rate", "M Rate Growth Rate:",
-                  min = -0.1, max = 0.1, value = 0.02, step = 0.01),
-      sliderInput("cpi_exRent_growth_rate", "CPI Excluding Rents Growth Rate:",
-                  min = -0.1, max = 0.1, value = 0.01, step = 0.01),
-      sliderInput("unemp_growth_rate", "Unemployment Growth Rate:",
-                  min = -0.1, max = 0.1, value = -0.01, step = 0.01)
+      sliderInput("earnings_growth_rate", "Annual earnings Growth Rate:",
+                  min = -0.4, max = 0.4, value = 0.04, step = 0.01),
+      sliderInput("pop_growth_rate", "Annual population Growth Rate:",
+                  min = -0.4, max = 0.4, value = 0.04, step = 0.01),
+      sliderInput("dwells_growth_rate", "Annual dwellings Growth Rate:",
+                  min = -0.4, max = 0.4, value = 0.04, step = 0.01),
+      sliderInput("mrate_growth_rate", "Annual 2 year average Mortgage Rate Growth Rate:",
+                  min = -0.4, max = 0.4, value = 0.04, step = 0.01),
+      sliderInput("cpi_exRent_growth_rate", "Annual CPI Excluding Rents Growth Rate:",
+                  min = -0.4, max = 0.4, value = 0.04, step = 0.01),
+      sliderInput("unemp_growth_rate", "Annual unemployment Growth Rate:",
+                  min = -0.4, max = 0.4, value = 0.04, step = 0.01)
     ),
 
     mainPanel(
@@ -41,13 +41,27 @@ ui <- fluidPage(
 
 # Server  
 server <- function(input, output) {  
+  
+  annual_to_quarterly <- function(annual_rate) {  
+    return((1 + annual_rate)^(1/4) - 1)  
+  }  
+  
   rpi_change_plot <- reactive({  
     input$update  
     
-    scenario_growth_rates <- c(input$earnings_growth_rate, input$pop_growth_rate, input$dwells_growth_rate,
-                               input$mrate_growth_rate, input$cpi_exRent_growth_rate, input$unemp_growth_rate)
+    scenario_growth_rates <- c(annual_to_quarterly(input$earnings_growth_rate),
+                               annual_to_quarterly(input$pop_growth_rate),
+                               annual_to_quarterly(input$dwells_growth_rate),
+                               annual_to_quarterly(input$mrate_growth_rate),
+                               annual_to_quarterly(input$cpi_exRent_growth_rate),
+                               annual_to_quarterly(input$unemp_growth_rate))
 
-    #scenario_growth_rates <- c( 0.03, 0.02, 0.02, 0, 0.004, 0.03)
+  # scenario_growth_rates <- c(annual_to_quarterly(0.03) , 
+  #                            annual_to_quarterly(0.02),
+  #                            annual_to_quarterly(0.02),
+  #                            annual_to_quarterly(0),
+  #                            annual_to_quarterly( 0.004),
+  #                            annual_to_quarterly(0.03))
     
     # Get the last observed values of the predictor variables  
     last_values <- as.numeric(combined_nz_quarterly[nrow(combined_nz_quarterly), predictor_vars])  
@@ -95,8 +109,12 @@ server <- function(input, output) {
   predictor_variables_plot <- reactive({  
     input$update  
     
-    scenario_growth_rates <- c(input$earnings_growth_rate, input$pop_growth_rate, input$dwells_growth_rate,    
-                               input$mrate_growth_rate, input$cpi_exRent_growth_rate, input$unemp_growth_rate)    
+    scenario_growth_rates <- c(annual_to_quarterly(input$earnings_growth_rate),  
+      annual_to_quarterly(input$pop_growth_rate),  
+      annual_to_quarterly(input$dwells_growth_rate),  
+      annual_to_quarterly(input$mrate_growth_rate),  
+      annual_to_quarterly(input$cpi_exRent_growth_rate),  
+      annual_to_quarterly(input$unemp_growth_rate))   
     
     # Get the last observed absolute values of the predictor variables  
     absolute_predictor_vars <- gsub(".change", "", predictor_vars)  
@@ -118,7 +136,7 @@ server <- function(input, output) {
       geom_line() +  
       facet_wrap(~ variable, scales = "free_y") + 
       labs(title = "Forecasted Values of Predictor Variables",
-           subtitle = "Quarterly values given chosen quarterly rate of change",
+           subtitle = "Quarterly values given chosen rate of change",
            x = "Date",  
            y = "Value") +  
       theme_minimal()        

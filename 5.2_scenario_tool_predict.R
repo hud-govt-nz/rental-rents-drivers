@@ -152,11 +152,15 @@ scenario2_growth_rates <- c(0.02, 0.03, 0.01, 0.03, 0.02, -0.02)  # Example grow
 create_scenario_data <- function(last_values, growth_rates) {  
   future_values <- matrix(0, nrow = horizon, ncol = length(last_values))  
   for (i in 1:length(last_values)) {  
-    future_values[, i] <- last_values[i] * cumprod(1 + rep(growth_rates[i], horizon))  
+    # Check if the last value is negative  
+    if (last_values[i] < 0) {  
+      future_values[, i] <- last_values[i] + cumsum(rep(growth_rates[i], horizon))  
+    } else {  
+      future_values[, i] <- last_values[i] * cumprod(1 + rep(growth_rates[i], horizon))  
+    }  
   }  
   return(future_values)  
 }  
-
 # Get the last observed values of the predictor variables  
 last_values <- as.numeric(combined_nz_quarterly[nrow(combined_nz_quarterly), predictor_vars])  
 
