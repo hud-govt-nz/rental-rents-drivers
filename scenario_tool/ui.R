@@ -10,6 +10,13 @@ combined_nz_quarterly <- readRDS('C:/Working/rental-rents-drivers/data/scenario_
 ### Load models  
 load('C:/Working/rental-rents-drivers/data/scenario_tool/models.RData')  
 
+### Load functions
+load('C:/Working/rental-rents-drivers/data/scenario_tool/functions.RData')
+
+### Load variables
+load('C:/Working/rental-rents-drivers/data/scenario_tool/all_variables.RData')
+
+
 # # UI  
 ui <- fluidPage(
   titlePanel("RPI Change Prediction Tool"),
@@ -42,10 +49,6 @@ ui <- fluidPage(
 # Server  
 server <- function(input, output) {  
   
-  annual_to_quarterly <- function(annual_rate) {  
-    return((1 + annual_rate)^(1/4) - 1)  
-  }  
-  
   rpi_change_plot <- reactive({  
     input$update  
     
@@ -56,7 +59,7 @@ server <- function(input, output) {
                                annual_to_quarterly(input$cpi_exRent_growth_rate),
                                annual_to_quarterly(input$unemp_growth_rate))
 
-  # scenario_growth_rates <- c(annual_to_quarterly(0.03) , 
+  # scenario_growth_rates <- c(annual_to_quarterly(0.03) ,
   #                            annual_to_quarterly(0.02),
   #                            annual_to_quarterly(0.02),
   #                            annual_to_quarterly(0),

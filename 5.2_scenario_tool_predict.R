@@ -11,7 +11,7 @@ library(ggplot2)
 combined_nz <- readRDS('data/scenario_tool/combined_df.RDS')
 combined_nz_quarterly <- readRDS('data/scenario_tool/combined_df_quarterly.RDS')
 
-### Load models
+### Load models that Nam developed
 load('data/scenario_tool/models.RData')
 
 ### Create predictions using one of the models -- all models have been trained with quarterly data
@@ -91,7 +91,7 @@ plot(forecast(auto.arima(combined_nz_quarterly$cpi_exRent.change)), main = 'CPI 
 plot(forecast(auto.arima(combined_nz_quarterly$unemp.change)), main = 'Unemployment change')
 
 # Run the predictor model using the forecasted predictor variables and using the lag of RPI
-detach(package:dplyr, unload = TRUE)  # need to detach dplyr because it interferes with the predict() function
+#detach(package:dplyr, unload = TRUE)  # need to detach dplyr because it interferes with the predict() function
 
 # Initialize a vector to store RPI change predictions  
 rpi_change_predictions <- numeric(horizon)  
@@ -292,3 +292,14 @@ ggplot(combined_rpi_changes, aes(x = date, y = rpi_change, color = type)) +
        color = "Type") +  
   scale_color_manual(values = c("Real" = "blue", "Scenario 1" = "red", "Scenario 2" = "green")) +  
   theme_minimal()  
+
+# Create helper funciton to transform annual alues to quarterly
+annual_to_quarterly <- function(annual_rate) {  
+  return((1 + annual_rate)^(1/4) - 1)  
+}  
+
+# Save functions into an Rdata object
+save(annual_to_quarterly, create_scenario_data, forecast_rpi_change, add_line_segment, forecast_arima, file = 'data/scenario_tool/functions.RData')  
+
+# Save all objects
+save(list = ls(), file = "data/scenario_tool/all_variables.RData")  
